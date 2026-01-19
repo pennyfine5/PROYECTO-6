@@ -219,14 +219,14 @@ results = platform_lifecycle_analysis(df_filtered, top_k=8, recent_window=3, pop
 
 results = platform_lifecycle_analysis(df_games, top_k=31, recent_window=3, popular_past_window=10)
 
-print("\nTop plataformas por ventas totales:")
-print(results['platform_total'].head(12))
+st.write("\nTop plataformas por ventas totales:")
+st.dataframe(results['platform_total'].head(12))
 
-print("\nPlataformas candidatas en declive (fueron populares pero ahora con ventas muy bajas):")
-display(results['decline_candidates'])
+st.write("Plataformas candidatas en declive:")
+st.dataframe(results['decline_candidates'])
 
-print("\nResumen de vida (primeras 20 por ventas):")
-display(results['platform_stats_df'].head(20))
+st.write("Resumen de vida (primeras 20 por ventas):")
+st.dataframe(results['platform_stats_df'].head(20))
 
-print("\nEstadísticas resumen (medianas/medias):")
-print(results['summary_stats'])
+st.write("\nEstadísticas resumen (medianas/medias):")
+st.write(results['summary_stats'])
