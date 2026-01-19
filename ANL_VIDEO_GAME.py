@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 df_games = pd.read_csv('V_GAMES.csv')
+df_games.columns = df_games.columns.str.lower()
 
 # Configuración de la página
 st.set_page_config(
@@ -19,7 +20,7 @@ st.markdown("---")
 def load_data():
     df = pd.read_csv('V_GAMES.csv')
     # Limpieza básica
-    df = df.dropna(subset=['Name']).copy()
+    df = df.dropna(subset=['name']).copy()
     return df
 
 # Cargar los datos
