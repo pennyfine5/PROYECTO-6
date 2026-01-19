@@ -1,6 +1,8 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+import matplotlib.pyplot as plt
+import numpy as np
 df_games = pd.read_csv('V_GAMES.csv')
 df_games.columns = df_games.columns.str.lower()
 
@@ -19,11 +21,11 @@ st.markdown("---")
 @st.cache_data
 def load_data():
     df = pd.read_csv('V_GAMES.csv')
-    # Limpieza básica
+    df.columns = df.columns.str.lower()  # Aplicar aquí
     df = df.dropna(subset=['name']).copy()
     return df
 
-# Cargar los datos
+# Cargar los datos UNA SOLA VEZ
 df_games = load_data()
 
 # Sidebar para filtros
