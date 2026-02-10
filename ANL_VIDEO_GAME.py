@@ -7,7 +7,7 @@ import numpy as np
 # ----------------------------------
 # CONFIGURACIÓN DE LA PÁGINA (PRIMERO)
 # ----------------------------------
-st.set_page_config(
+st.set_page_config( 
     page_title="Análisis de Videojuegos",
     page_icon="🎮",
     layout="wide"
