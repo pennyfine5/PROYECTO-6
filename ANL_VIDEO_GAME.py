@@ -32,6 +32,8 @@ df_games = load_data()
 # ----------------------------------
 # TÍTULO + FILTROS
 # ----------------------------------
+df_games['total_sales'] = df_games[['na_sales', 'eu_sales', 'jp_sales', 'other_sales']].sum(axis=1)
+
 st.title("🎮 Análisis de Videojuegos")
 st.markdown("---")
 
