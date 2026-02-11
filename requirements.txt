@@ -1,7 +1,6 @@
-pandas
-plotly_express
 streamlit
-matplotlib
+pandas
 numpy
+matplotlib
 seaborn
-plotly.graph_objects
+plotly
