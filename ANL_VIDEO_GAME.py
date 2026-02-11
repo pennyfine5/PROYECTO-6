@@ -175,14 +175,19 @@ def platform_lifecycle_analysis(
     stats_df = pd.DataFrame(stats).sort_values("total_sales", ascending=False)
 
     fig_timeline, ax3 = plt.subplots(figsize=(10, 6))
-    for i, row in stats_df.head(top_k).reset_index().iterrows():
+
+
+    top_stats = stats_df.head(top_k).reset_index(drop=True)
+
+    
+    for i, row in top_stats.iterrows():
         ax3.hlines(i, row["first"], row["last"], linewidth=6)
         ax3.plot(row["first"], i, "o")
         ax3.plot(row["peak"], i, "s")
         ax3.plot(row["last"], i, "x")
 
-    ax3.set_yticks(range(top_k))
-    ax3.set_yticklabels(stats_df.head(top_k)["platform"])
+    ax3.set_yticks(range(len(top_stats)))
+    ax3.set_yticklabels(top_stats["platform"])
     ax3.set_title("Ciclo de vida de plataformas")
     ax3.set_xlabel("Año")
     ax3.grid(axis="x", alpha=0.3)
