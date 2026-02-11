@@ -36,7 +36,7 @@ st.title("🎮 Análisis de Videojuegos")
 st.markdown("---")
 
 fig = px.bar(
-    sales_by_region, 
+    total_sales, 
     x="region", 
     y="sales",
     color="region",
