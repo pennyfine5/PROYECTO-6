@@ -1,17 +1,17 @@
 import streamlit as st
 import pandas as pd
-import plotly.express as px
 import matplotlib.pyplot as plt
-import numpy as np
 
 # ----------------------------------
-# CONFIGURACIÓN DE LA PÁGINA (PRIMERO)
+# CONFIGURACIÓN DE LA PÁGINA
 # ----------------------------------
-st.set_page_config( 
+st.set_page_config(
     page_title="Análisis de Videojuegos",
     page_icon="🎮",
     layout="wide"
 )
+
+plt.style.use("seaborn-v0_8-darkgrid")
 
 # ----------------------------------
 # CARGA DE DATOS
@@ -26,18 +26,61 @@ def load_data():
 df_games = load_data()
 
 # ----------------------------------
-# TÍTULO
+# TÍTULO + FILTROS
 # ----------------------------------
 st.title("🎮 Análisis de Videojuegos")
 st.markdown("---")
 
+st.sidebar.header("🎮 Filtros")
+
+year_min = int(df_games["year_of_release"].min())
+year_max = int(df_games["year_of_release"].max())
+
+year_range = st.sidebar.slider(
+    "Rango de años",
+    year_min,
+    year_max,
+    (2000, year_max)
+)
+
+platforms = sorted(df_games["platform"].dropna().unique())
+selected_platforms = st.sidebar.multiselect(
+    "Plataformas",
+    platforms,
+    default=platforms[:5]
+)
+
+# ----------------------------------
+# FILTRADO
+# ----------------------------------
+df_filtered = df_games[
+    (df_games["year_of_release"].between(year_range[0], year_range[1])) &
+    (df_games["platform"].isin(selected_platforms))
+]
+
+if df_filtered.empty:
+    st.warning("⚠️ No hay datos para los filtros seleccionados")
+    st.stop()
+
+# ----------------------------------
+# KPIs
+# ----------------------------------
+total_sales = df_filtered[["na_sales", "eu_sales", "jp_sales", "other_sales"]].sum().sum()
+total_games = df_filtered["name"].nunique()
+total_platforms = df_filtered["platform"].nunique()
+
+c1, c2, c3 = st.columns(3)
+c1.metric("🎮 Juegos", f"{total_games:,}")
+c2.metric("🕹️ Plataformas", total_platforms)
+c3.metric("💰 Ventas totales", f"{total_sales:.2f} M")
+
 # ----------------------------------
 # GRÁFICA: JUEGOS POR AÑO
 # ----------------------------------
-st.subheader("Juegos lanzados por año")
+st.subheader("📆 Juegos lanzados por año")
 
 games_per_year = (
-    df_games["year_of_release"]
+    df_filtered["year_of_release"]
     .dropna()
     .astype(int)
     .value_counts()
@@ -46,7 +89,7 @@ games_per_year = (
 
 fig, ax = plt.subplots(figsize=(10, 5))
 ax.bar(games_per_year.index.astype(str), games_per_year.values)
-ax.set_xlabel("Año de lanzamiento")
+ax.set_xlabel("Año")
 ax.set_ylabel("Número de juegos")
 ax.set_title("Juegos lanzados por año")
 plt.xticks(rotation=45)
@@ -54,21 +97,20 @@ plt.xticks(rotation=45)
 st.pyplot(fig)
 
 # ----------------------------------
-# FUNCIÓN DE CICLO DE VIDA
+# FUNCIÓN: CICLO DE VIDA DE PLATAFORMAS
 # ----------------------------------
+@st.cache_data
 def platform_lifecycle_analysis(
-    df_games,
+    df,
     sales_cols=["na_sales", "eu_sales", "jp_sales", "other_sales"],
     year_col="year_of_release",
     platform_col="platform",
-    top_k=8,
+    top_k=10,
     recent_window=3,
-    popular_past_window=10,
     decline_thresh=0.01
 ):
-    df = df_games.copy()
+    df = df.copy()
 
-    # ---- limpieza ----
     df[year_col] = pd.to_numeric(df[year_col], errors="coerce")
     df = df.dropna(subset=[year_col])
     df[year_col] = df[year_col].astype(int)
@@ -76,7 +118,6 @@ def platform_lifecycle_analysis(
     df[sales_cols] = df[sales_cols].fillna(0)
     df["total_sales"] = df[sales_cols].sum(axis=1)
 
-    # ---- totales ----
     platform_total = (
         df.groupby(platform_col)["total_sales"]
         .sum()
@@ -93,32 +134,26 @@ def platform_lifecycle_analysis(
 
     top_platforms = platform_total.head(top_k).index.tolist()
 
-    # =========================
-    # 📈 GRÁFICA 1: líneas
-    # =========================
-    fig_lines, ax = plt.subplots(figsize=(12, 5))
+    # 📈 Ventas por año
+    fig_lines, ax1 = plt.subplots(figsize=(12, 5))
     for p in top_platforms:
-        ax.plot(pivot.index, pivot[p], marker="o", label=p)
+        ax1.plot(pivot.index, pivot[p], marker="o", label=p)
 
-    ax.set_title(f"Ventas por año — Top {top_k} plataformas")
-    ax.set_xlabel("Año")
-    ax.set_ylabel("Ventas")
-    ax.legend()
-    ax.grid(alpha=0.3)
+    ax1.set_title("Ventas anuales — Top plataformas")
+    ax1.set_xlabel("Año")
+    ax1.set_ylabel("Ventas")
+    ax1.legend()
+    ax1.grid(alpha=0.3)
 
-    # =========================
-    # 📊 GRÁFICA 2: área acumulada
-    # =========================
+    # 📊 Área acumulada
     fig_area, ax2 = plt.subplots(figsize=(12, 5))
     pivot[top_platforms].plot.area(ax=ax2, alpha=0.75)
     ax2.set_title("Participación anual por plataforma")
     ax2.set_xlabel("Año")
     ax2.set_ylabel("Ventas")
 
-    # =========================
-    # ⏳ GRÁFICA 3: timeline de vida
-    # =========================
-    platform_stats = []
+    # ⏳ Ciclo de vida
+    stats = []
 
     for p in pivot.columns:
         s = pivot[p]
@@ -126,30 +161,21 @@ def platform_lifecycle_analysis(
         if nz.empty:
             continue
 
-        first = int(nz.index.min())
-        last = int(nz.index.max())
-        peak = int(s.idxmax())
-
-        platform_stats.append({
+        stats.append({
             "platform": p,
-            "first": first,
-            "peak": peak,
-            "last": last,
+            "first": int(nz.index.min()),
+            "peak": int(s.idxmax()),
+            "last": int(nz.index.max()),
             "total_sales": s.sum(),
-            "years_active": last - first + 1,
-            "years_to_peak": peak - first,
-            "years_decline": last - peak
+            "years_active": int(nz.index.max() - nz.index.min() + 1),
+            "years_to_peak": int(s.idxmax() - nz.index.min()),
+            "years_decline": int(nz.index.max() - s.idxmax())
         })
 
-    stats_df = (
-        pd.DataFrame(platform_stats)
-        .sort_values("total_sales", ascending=False)
-        .reset_index(drop=True)
-    )
+    stats_df = pd.DataFrame(stats).sort_values("total_sales", ascending=False)
 
     fig_timeline, ax3 = plt.subplots(figsize=(10, 6))
-
-    for i, row in stats_df.head(top_k).iterrows():
+    for i, row in stats_df.head(top_k).reset_index().iterrows():
         ax3.hlines(i, row["first"], row["last"], linewidth=6)
         ax3.plot(row["first"], i, "o")
         ax3.plot(row["peak"], i, "s")
@@ -157,13 +183,10 @@ def platform_lifecycle_analysis(
 
     ax3.set_yticks(range(top_k))
     ax3.set_yticklabels(stats_df.head(top_k)["platform"])
-    ax3.set_title("Ciclo de vida de plataformas (first / peak / last)")
+    ax3.set_title("Ciclo de vida de plataformas")
     ax3.set_xlabel("Año")
     ax3.grid(axis="x", alpha=0.3)
 
-    # =========================
-    # 📉 Plataformas en declive
-    # =========================
     last_year = pivot.index.max()
     recent = pivot[pivot.index >= last_year - recent_window + 1].sum()
 
@@ -172,54 +195,47 @@ def platform_lifecycle_analysis(
         (stats_df["years_decline"] > stats_df["years_to_peak"])
     ][["platform", "total_sales", "years_active", "years_decline"]]
 
-    # =========================
-    # 📌 métricas resumen
-    # =========================
     summary = {
-        "vida_media": stats_df["years_active"].mean(),
-        "vida_mediana": stats_df["years_active"].median(),
-        "años_hasta_pico_media": stats_df["years_to_peak"].mean(),
-        "años_hasta_pico_mediana": stats_df["years_to_peak"].median(),
-        "años_de_declive_media": stats_df["years_decline"].mean(),
+        "vida_media": round(stats_df["years_active"].mean(), 2),
+        "vida_mediana": round(stats_df["years_active"].median(), 2),
+        "años_hasta_pico_media": round(stats_df["years_to_peak"].mean(), 2),
+        "años_de_declive_media": round(stats_df["years_decline"].mean(), 2),
     }
 
-    return {
-        "platform_total": platform_total,
-        "pivot": pivot,
-        "stats_df": stats_df,
-        "decline_df": decline_df,
-        "summary": summary,
-        "fig_lines": fig_lines,
-        "fig_area": fig_area,
-        "fig_timeline": fig_timeline
-    }
+    return fig_lines, fig_area, fig_timeline, decline_df, summary, platform_total
 
 # ----------------------------------
 # EJECUCIÓN
 # ----------------------------------
-results = platform_lifecycle_analysis(
-    df_games,
-    top_k=10,
-    recent_window=3,
-    popular_past_window=10
+fig_lines, fig_area, fig_timeline, decline_df, summary, platform_total = (
+    platform_lifecycle_analysis(df_filtered)
 )
 
 # ----------------------------------
-# MOSTRAR RESULTADOS
+# VISUALIZACIÓN
 # ----------------------------------
-results = platform_lifecycle_analysis(df_games, top_k=10)
-
 st.subheader("📈 Ventas por año")
-st.pyplot(results["fig_lines"])
+st.pyplot(fig_lines)
 
 st.subheader("📊 Participación anual")
-st.pyplot(results["fig_area"])
+st.pyplot(fig_area)
 
 st.subheader("⏳ Ciclo de vida de plataformas")
-st.pyplot(results["fig_timeline"])
+st.pyplot(fig_timeline)
 
 st.subheader("📉 Plataformas en declive")
-st.dataframe(results["decline_df"])
+st.dataframe(decline_df)
 
 st.subheader("📌 Estadísticas resumen")
-st.json(results["summary"])
+st.json(summary)
+
+# ----------------------------------
+# INSIGHT AUTOMÁTICO
+# ----------------------------------
+top_platform = platform_total.idxmax()
+top_sales = platform_total.max()
+
+st.info(
+    f"🎯 La plataforma dominante fue **{top_platform}** "
+    f"con **{top_sales:.2f} millones** de unidades vendidas."
+)
