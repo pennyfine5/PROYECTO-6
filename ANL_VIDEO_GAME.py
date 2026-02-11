@@ -8,6 +8,7 @@ import plotly.graph_objects as go
 # ----------------------------------
 # CONFIGURACIÓN DE LA PÁGINA
 # ----------------------------------
+
 st.set_page_config(
     page_title="Análisis de Videojuegos",
     page_icon="🎮",
@@ -70,9 +71,22 @@ df_filtered = df_games[
     (df_games["platform"].isin(selected_platforms))
 ]
 
+df_filtered["rating"] = df_filtered["rating"].fillna("Unknown")
+
+ratings = sorted(df_filtered["rating"].unique())
+
+selected_ratings = st.sidebar.multiselect(
+    "Clasificación por edades",
+    ratings,
+    default=ratings
+)
+
+df_filtered = df_filtered[df_filtered["rating"].isin(selected_ratings)]
+
 if df_filtered.empty:
     st.warning("⚠️ No hay datos para los filtros seleccionados")
     st.stop()
+
 
 # ----------------------------------
 # KPIs
@@ -107,6 +121,33 @@ ax.set_title("Juegos lanzados por año")
 plt.xticks(rotation=45)
 
 st.pyplot(fig)
+
+st.markdown("---")
+st.subheader("🎯 Ventas por clasificación de edad")
+
+rating_sales = (
+    df_filtered
+    .groupby("rating")[["na_sales","eu_sales","jp_sales","other_sales"]]
+    .sum()
+    .sum(axis=1)
+    .sort_values(ascending=False)
+)
+
+fig, ax = plt.subplots(figsize=(8, 5))
+ax.bar(rating_sales.index, rating_sales.values)
+ax.set_xlabel("Clasificación")
+ax.set_ylabel("Ventas totales (millones)")
+ax.set_title("Ventas por clasificación de edad")
+
+st.pyplot(fig)
+
+top_rating = rating_sales.idxmax()
+top_rating_sales = rating_sales.max()
+
+st.info(
+    f"🎮 La clasificación con mayores ventas es **{top_rating}**, "
+    f"con **{top_rating_sales:.2f} millones** de unidades vendidas."
+)
 
 # ----------------------------------
 # FUNCIÓN: CICLO DE VIDA DE PLATAFORMAS
