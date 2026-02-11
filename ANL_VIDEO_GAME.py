@@ -1,6 +1,9 @@
 import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
+import plotly.express as px
+import plotly.graph_objects as go
+
 
 # ----------------------------------
 # CONFIGURACIÓN DE LA PÁGINA
@@ -31,6 +34,15 @@ df_games = load_data()
 st.title("🎮 Análisis de Videojuegos")
 st.markdown("---")
 
+fig = px.bar(
+    sales_by_region, 
+    x="region", 
+    y="sales",
+    color="region",
+    title="Ventas por región"
+)
+
+st.plotly_chart(fig, use_container_width=True)
 st.sidebar.header("🎮 Filtros")
 
 year_min = int(df_games["year_of_release"].min())
