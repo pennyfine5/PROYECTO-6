@@ -37,8 +37,18 @@ df_games['total_sales'] = df_games[['na_sales', 'eu_sales', 'jp_sales', 'other_s
 st.title("🎮 Análisis de Videojuegos")
 st.markdown("---")
 
+sales_by_region = pd.DataFrame({
+    'region': ['Norteamérica', 'Europa', 'Japón', 'Otros'],
+    'sales': [
+        df_games['na_sales'].sum(),
+        df_games['eu_sales'].sum(), 
+        df_games['jp_sales'].sum(),
+        df_games['other_sales'].sum()
+    ]
+})
+
 fig = px.bar(
-    total_sales, 
+    sales_by_region,
     x="region", 
     y="sales",
     color="region",
